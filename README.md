@@ -26,8 +26,8 @@ A standard sentiment model gives this review a single label. ABSA separates opin
 | Member | GitHub |
 |---|---|
 | Ozan Anar | [@ozananr](https://github.com/ozananr) |
-| Mehmet Salih Kendirkıran | [@kullanici](https://github.com/MSalih2756) |
-| Yusuf Açık | [@kullanici](https://github.com/yusufacik26) |
+| Mehmet Salih Kendirkıran | [@MSalih2756](https://github.com/MSalih2756) |
+| Yusuf Açık | [@yusufacik26](https://github.com/yusufacik26) |
 
 The team lead (captain) rotates weekly. See [milestones](https://github.com/ozananr/turkish-product-absa/milestones) for the current week.
 
