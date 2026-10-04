@@ -218,3 +218,42 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# ============================================================
+# Project-specific rules
+# ============================================================
+
+# --- Data: no data file is ever committed ---
+/data/**
+!/data/**/
+!/data/**/.gitkeep
+!/data/README.md
+
+# --- Model weights and experiment outputs ---
+models/
+outputs/
+checkpoints/
+wandb/
+mlruns/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.onnx
+
+# --- Secrets ---
+.env.*
+!.env.example
+
+# --- Editors and OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Annotation tool ---
+label-studio-data/
