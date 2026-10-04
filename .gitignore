@@ -248,7 +248,8 @@ mlruns/
 !.env.example
 
 # --- Editors and OS ---
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 .DS_Store
 Thumbs.db
