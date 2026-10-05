@@ -126,7 +126,7 @@ The web interface catches these errors and shows a user-friendly message.
 
 ### Mock implementation
 
-Until the real model is ready (Week 6), `predict()` returns random results that follow this contract exactly. The interface is built and tested against the mock, so replacing it with the real model requires no interface changes.
+Until the real model is ready (Week 6), `predict()` returns random results that follow this contract exactly. Until the real model is ready (Week 6), `predict()` returns placeholder results that follow this contract exactly. The placeholder is deterministic: results are derived from the input text (e.g. by seeding a random generator with a hash of the text), so the same input always returns the same output and rule 4 holds for the mock as well. The interface is built and tested against the mock, so replacing it with the real model requires no interface changes.
 
 ## 6. Verification
 
