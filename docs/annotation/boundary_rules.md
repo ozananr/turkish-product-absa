@@ -4,6 +4,21 @@ Rules for labeling cases where aspects or sentiments overlap. These rules comple
 
 ## 1. Aspect overlaps
 
+Sometimes a review can refer to multiple aspects or it is unclear which aspect is being discussed. Below are 10 boundary cases with the agreed-upon decisions to ensure annotator consistency.
+
+| Review (Ambiguous Case) | Conflicting Aspects | Decision & Reason |
+| :--- | :--- | :--- |
+| "Bozuk geldi" | `kargo_paketleme` vs `kalite` | If the outer box is crushed/damaged → `kargo_paketleme` (olumsuz). If the box is fine but the item doesn't work → `kalite` (olumsuz). |
+| "İki günde bozuldu" | `kalite` vs `islev` | `kalite` (olumsuz). Durability and quick breakdown fall under overall product quality. |
+| "Pakette eksik parça vardı" | `kargo_paketleme` vs `satici` | `satici` (olumsuz). Missing items inside an intact package is a preparation error by the seller, not a shipping issue. |
+| "Yanlış beden/renk göndermişler" | `beden_uyum` vs `satici` | `satici` (olumsuz). The product itself isn't necessarily the wrong fit; the seller shipped the wrong item entirely. |
+| "Fiyatına göre çok iyi" | `fiyat` vs `kalite` | `fiyat` (olumlu). The primary sentiment is about value for money. `kalite` remains `yok` or `notr` unless explicitly praised. |
+| "Resimdekiyle alakası yok, rengi farklı" | `kalite` vs `gorsel_uyum` | `gorsel_uyum` (olumsuz). The issue is specifically about a mismatch with the advertised image/design, not necessarily poor material quality. |
+| "Kurulumu çok zor, kılavuz yetersiz" | `kalite` vs `kurulum` | `kurulum` (olumsuz). The struggle is explicitly with the assembly and setup process. |
+| "İade ettim paramı haftalarca yatırmadılar" | `satici` vs `fiyat` | `satici` (olumsuz). Refund delays are a customer service/seller behavior issue, independent of the product's price. |
+| "Çalışırken çok fazla ses çıkarıyor" | `kalite` vs `islev` | `islev` (olumsuz). If the product works as intended but is annoyingly loud, it is a functional trait rather than a broken/quality defect. |
+| "Hediye paketi istemiştim yapılmamış" | `kargo_paketleme` vs `satici` | `satici` (olumsuz). Failure to fulfill a special request is a seller omission, not standard shipping damage. |
+
 ## 2. Label rules
 
 Each of the 7 aspects gets exactly one label per review: `yok`, `olumlu`, `olumsuz` or `notr`.
