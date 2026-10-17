@@ -10,6 +10,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "gradio>=6.30.0",
     "scikit-learn>=1.9.1",
 ]
 
@@ -33,4 +34,5 @@ extend-include = ["*.ipynb"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
