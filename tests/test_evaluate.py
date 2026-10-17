@@ -1,72 +1,54 @@
-"""Shared evaluation for all models (baseline, BERTurk, ...).
+import pytest
 
-Every model is evaluated with the same function, so their results can be
-compared directly.
-"""
-
-from __future__ import annotations
-
-from collections.abc import Mapping, Sequence
-from statistics import fmean
-
+from absa.models.evaluate import evaluate, format_report
 from absa.schema import ASPECTS, LABELS
-from sklearn.metrics import confusion_matrix, f1_score, precision_recall_fscore_support
 
 
-def evaluate(
-    y_true: Mapping[str, Sequence[str]],
-    y_pred: Mapping[str, Sequence[str]],
-    aspects: Sequence[str] = ASPECTS,
-    labels: Sequence[str] = LABELS,
-) -> dict:
-    """Compute per-aspect precision, recall, F1, macro-F1 and confusion matrices.
-
-    Args:
-        y_true: Gold labels, one list per aspect, e.g. {"kalite": ["olumlu", "yok"], ...}.
-        y_pred: Predicted labels in the same format.
-        aspects: Aspects to evaluate (defaults to all aspects in the schema).
-        labels: Label order used for per-label scores and confusion matrices.
-
-    Returns:
-        {"macro_f1": float, "per_aspect": {aspect: {...}}}. The overall macro-F1 is the
-        mean of the per-aspect macro-F1 scores. Per-aspect macro-F1 only averages over
-        labels that appear in the gold or predicted labels of that aspect.
-    """
-    labels = list(labels)
-    per_aspect = {}
-
-    for aspect in aspects:
-        true, pred = list(y_true[aspect]), list(y_pred[aspect])
-        if len(true) != len(pred):
-            raise ValueError(f"{aspect}: {len(true)} gold labels but {len(pred)} predictions")
-
-        precision, recall, f1, support = precision_recall_fscore_support(
-            true, pred, labels=labels, average=None, zero_division=0
-        )
-        per_aspect[aspect] = {
-            "macro_f1": float(f1_score(true, pred, average="macro", zero_division=0)),
-            "per_label": {
-                label: {
-                    "precision": float(p),
-                    "recall": float(r),
-                    "f1": float(f),
-                    "support": int(s),
-                }
-                for label, p, r, f, s in zip(labels, precision, recall, f1, support, strict=True)
-            },
-            "confusion_matrix": confusion_matrix(true, pred, labels=labels).tolist(),
-        }
-
-    return {
-        "macro_f1": fmean(m["macro_f1"] for m in per_aspect.values()),
-        "per_aspect": per_aspect,
-    }
+def _same_for_all_aspects(labels):
+    return {aspect: list(labels) for aspect in ASPECTS}
 
 
-def format_report(results: dict) -> str:
-    """Return a short text table of macro-F1 per aspect and overall."""
-    lines = [f"{'aspect':<20}{'macro-F1':>10}"]
-    for aspect, metrics in results["per_aspect"].items():
-        lines.append(f"{aspect:<20}{metrics['macro_f1']:>10.3f}")
-    lines.append(f"{'overall':<20}{results['macro_f1']:>10.3f}")
-    return "\n".join(lines)
+def test_perfect_predictions_score_one():
+    gold = _same_for_all_aspects(["olumlu", "olumsuz", "notr", "yok"])
+    results = evaluate(gold, gold)
+    assert results["macro_f1"] == pytest.approx(1.0)
+    for metrics in results["per_aspect"].values():
+        assert metrics["macro_f1"] == pytest.approx(1.0)
+
+
+def test_known_example():
+    # olumlu: precision 2/3, recall 1 -> F1 0.8; olumsuz: F1 0; yok: F1 1
+    gold = _same_for_all_aspects(["olumlu", "olumsuz", "olumlu", "yok"])
+    pred = _same_for_all_aspects(["olumlu", "olumlu", "olumlu", "yok"])
+    results = evaluate(gold, pred)
+
+    kalite = results["per_aspect"]["kalite"]
+    assert kalite["per_label"]["olumlu"]["f1"] == pytest.approx(0.8)
+    assert kalite["per_label"]["olumsuz"]["f1"] == pytest.approx(0.0)
+    assert kalite["macro_f1"] == pytest.approx((0.8 + 0.0 + 1.0) / 3)
+    assert results["macro_f1"] == pytest.approx((0.8 + 0.0 + 1.0) / 3)
+
+
+def test_confusion_matrix_uses_label_order():
+    gold = _same_for_all_aspects(["olumlu", "olumsuz"])
+    pred = _same_for_all_aspects(["olumlu", "olumlu"])
+    matrix = evaluate(gold, pred)["per_aspect"]["kalite"]["confusion_matrix"]
+
+    assert len(matrix) == len(LABELS)
+    row, col = LABELS.index("olumsuz"), LABELS.index("olumlu")
+    assert matrix[row][col] == 1
+
+
+def test_length_mismatch_raises():
+    gold = _same_for_all_aspects(["olumlu", "yok"])
+    pred = _same_for_all_aspects(["olumlu"])
+    with pytest.raises(ValueError):
+        evaluate(gold, pred)
+
+
+def test_format_report_lists_every_aspect():
+    gold = _same_for_all_aspects(["olumlu", "yok"])
+    report = format_report(evaluate(gold, gold))
+    for aspect in ASPECTS:
+        assert aspect in report
+    assert "overall" in report
