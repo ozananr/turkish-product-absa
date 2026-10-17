@@ -19,6 +19,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "gradio" },
+    { name = "pandas" },
 ]
 
 [package.dev-dependencies]
@@ -29,7 +30,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "gradio", specifier = ">=6.30.0" }]
+requires-dist = [
+    { name = "gradio", specifier = ">=6.30.0" },
+    { name = "pandas", specifier = ">=3.0.6" },
+]
 
 [package.metadata.requires-dev]
 dev = [
