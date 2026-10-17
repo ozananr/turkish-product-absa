@@ -86,11 +86,56 @@
   * **Dataset 1:** Use `product_name` to sample ~10,000 reviews specifically targeting missing categories (e.g., clothing for "size/fit" aspects, electronics).
 * **Yield Expectation:** After aggressive filtering (removing duplicates, very short reviews under 3-4 words, and template reviews like "hızlı kargo", "güzel ürün"), we estimate a 25-30% retention rate. Starting with a combined raw pool of ~38,000 filtered samples will comfortably leave us with a high-quality, balanced set of 10,000+ reviews ready for aspect manual annotation.
 
+## Birleştirme, Temizleme ve Maskeleme Raporu (TRSAv1 + Trendyol)
 
-## Initial Cleaning Results (Dummy Pipeline Run)
-- **Initial combined reviews:** 15,000
-- **Dropped reviews (duplicates, templates, short):** 5,000
-- **Final clean reviews:** 10,000
-- **Duplication/Invalid rate:** 33.33%
+Kullanılan veri setleri: `TRSAv1` (150.000 yorum) ve `Trendyol` (110.180 yorum). İkisi de tamamen işlendi.
+Kod: `src/absa/data/` (`loader.py`, `masker.py`, `cleaner.py`, `pipeline.py`). Testler: `tests/test_masker.py`, `tests/test_cleaner.py`, `tests/test_data_prep.py`.
 
-*Note: Personal data (emails, phone numbers) has been securely masked using regex tags like `[TELEFON]` and `[EPOSTA]`. The pipeline is verified and ready for the real datasets.*
+Yeniden çalıştırmak için:
+
+```bash
+uv run python -m absa.data.pipeline --trsa <TRSAv1.csv> --trendyol <trendyol.csv>
+```
+
+Ham dosyalar `data/raw/`, çıktılar `data/interim/` altına yazılır (`reviews_combined.csv`, `reviews_clean.csv`, `cleaning_report.json`). Bu klasörler git'e eklenmez.
+
+### Ortak şema
+
+`review_id, source, text, rating, label, product_name`
+
+- `label`: `positive` / `negative` / `neutral`. TRSAv1'de kaynak etiketidir. Trendyol'da puandan türetilir (1-2 negatif, 3 nötr, 4-5 pozitif).
+- `rating`: yalnızca Trendyol'da dolu (1-5). TRSAv1'de puan yoktur.
+- `product_name`: yalnızca Trendyol'da dolu.
+
+### Adım adım elenen yorumlar
+
+| Adım | Önce | Elenen | Sonra |
+|---|---:|---:|---:|
+| Birleştirilmiş ham veri | 260,180 | - | 260,180 |
+| Boş metin | 260,180 | 0 | 260,180 |
+| Tekrar (veri seti içi) | 260,180 | 28,971 | 231,209 |
+| Tekrar (veri setleri arası) | 231,209 | 1,934 | 229,275 |
+| Çok kısa (<3 kelime) | 229,275 | 5,959 | 223,316 |
+| Tamamen İngilizce | 223,316 | 47 | 223,269 |
+| Anlamsız | 223,269 | 351 | 222,918 |
+| Şablon | 222,918 | 1,933 | 220,985 |
+
+Maskeleme, tekrar tespitinden önce uygulanır. Böylece yalnızca telefon gibi alanları farklı olan yorumlar da tekrar sayılır.
+
+### Son kalite metrikleri
+
+- **Son temiz yorum sayısı:** 220,985. Hedef olan 10.000 yorum aşıldı.
+- **Toplam elenen:** 39,195 (tutma oranı %84.9).
+- **Tekrar oranı (ham veriye göre):** %11.9 (30,905 yorum).
+- **Kaynak dağılımı:** TRSAv1 133,959 / Trendyol 87,026.
+- **Etiket dağılımı:** positive 124,285 (%56.2), negative 49,251 (%22.3), neutral 47,449 (%21.5).
+- **Trendyol puan dağılımı:** 1★ 3,531 / 2★ 1,780 / 3★ 4,394 / 4★ 9,899 / 5★ 67,422.
+- **Kelime sayısı:** ortalama 12.37, medyan 9.
+- **Maskelenen alanlar:** `[ISIM]` 7, `[URL]` 2. `[EPOSTA]`, `[TELEFON]`, `[TCKN]`, `[IBAN]`, `[KART]` için 0. Bu veri setlerinde bu tür bilgiler büyük olasılıkla kaynakta zaten temizlenmiş.
+
+### Sınırlar
+
+- Trendyol'da 5 yıldız ağırlıklı (%77). Aspect etiketleme için örnekleme yaparken negatif ve nötr yorumlara öncelik verilmeli.
+- İsim maskeleme yalnızca belirgin kalıpları yakalar ("adım X", "Sayın X", "X Bey/Hanım"). Her ismi yakalamayı garanti etmez.
+- İngilizce tespiti kelime listesi sezgisine dayanır. Bağımlılık eklenmedi. Karışık dilli yorumlar korunur.
+- Şablon filtresi, yalnızca genel kelimelerden oluşan en çok 6 kelimelik yorumları eler.
