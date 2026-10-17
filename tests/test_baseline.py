@@ -1,7 +1,7 @@
 import pytest
-from absa.schema import ASPECTS, LABELS
 
 from absa.models.baseline import TfidfBaseline
+from absa.schema import ASPECTS, LABELS
 
 TEXTS = [
     "ürün çok kaliteli malzemesi sağlam",
