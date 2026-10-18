@@ -231,9 +231,9 @@ __marimo__/
 !/data/README.md
 
 # --- Model weights and experiment outputs ---
-models/
-outputs/
-checkpoints/
+/models/
+/outputs/
+/checkpoints/
 wandb/
 mlruns/
 *.ckpt
