@@ -12,4 +12,4 @@ Shared data location: [reviews_clean.csv (Google Drive)](https://drive.google.co
 
 To regenerate: `uv run python -m absa.data.pipeline --trsa <TRSAv1.csv> --trendyol <trendyol.csv>`
 
-Labeling sample (data/interim/labeling_sample.csv, 2,500 reviews, see docs/labeling_sample.md): _(Drive link will be added)_
+Labeling sample (`data/interim/labeling_sample.csv`, 2,500 reviews, see `docs/labeling_sample.md`): [Google Drive folder](https://drive.google.com/drive/folders/1ejuDxnYZ26be-paumcfRYs7cSfYUx3cM?usp=sharing). Access is restricted because the source datasets are licensed: ask a team member for access.
