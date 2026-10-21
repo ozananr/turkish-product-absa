@@ -11,7 +11,7 @@ from functools import cache
 from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
 
 def available_versions() -> list[str]:

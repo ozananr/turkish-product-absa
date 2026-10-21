@@ -4,7 +4,7 @@ Etiketleme örneği (`data/interim/labeling_sample.csv`, 2.500 yorum) bir LLM il
 Etiketleyiciler sıfırdan etiketlemek yerine önerileri düzeltir. Kappa seti (200 yorum) etiketleyicilere
 ön etiketsiz gösterilir, ama LLM'i insanlarla karşılaştırmak için o da ön etiketlenir.
 
-Kod: `src/absa/labeling/`. Prompt: `src/absa/labeling/prompts/v1.md`. Testler: `tests/test_labeling_*.py`.
+Kod: `src/absa/labeling/`. Prompt: `src/absa/labeling/prompts/v2.md`. Testler: `tests/test_labeling_*.py`.
 
 ## Sağlayıcı ve model seçimi
 
