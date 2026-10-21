@@ -4,7 +4,7 @@ Rules for labeling cases where aspects or sentiments overlap. These rules comple
 
 ## 1. Aspect overlaps
 
-Sometimes a review can refer to multiple aspects or it is unclear which aspect is being discussed. Below are 10 boundary cases with the agreed-upon decisions to ensure annotator consistency. All keys match `src/absa/schema.py`.
+Sometimes a review can refer to multiple aspects or it is unclear which aspect is being discussed. Below are 15 boundary cases with the agreed-upon decisions to ensure annotator consistency. All keys match `src/absa/schema.py`.
 
 | Review (Ambiguous Case) | Conflicting Aspects | Decision & Reason |
 | :--- | :--- | :--- |
@@ -18,6 +18,11 @@ Sometimes a review can refer to multiple aspects or it is unclear which aspect i
 | "İade ettim paramı haftalarca yatırmadılar" | `satici_hizmet` vs `fiyat` | `satici_hizmet` (olumsuz). Refund delays are a customer service/seller behavior issue, independent of the product's price. |
 | "Çalışırken çok fazla ses çıkarıyor" | `kalite` vs `islev_performans` | `islev_performans` (olumsuz). If the product works as intended but is annoyingly loud, it is a functional trait rather than a broken/quality defect. |
 | "Hediye paketi istemiştim yapılmamış" | `kargo_paketleme` vs `satici_hizmet` | `satici_hizmet` (olumsuz). Failure to fulfill a special request is a seller omission, not standard shipping damage. |
+| "Kokusu çok güzel" / "Kalıcılığı yok, hemen uçuyor" | `kalite` vs `islev_performans` | Sensory properties of cosmetics and scented products (scent, texture, consistency) → `kalite`. Their effect on skin or hair (cleaning, moisturizing, irritation, visible results) and how long they last → `islev_performans`. |
+| "Orijinal olduğunu düşünmüyorum" | `kalite` vs `satici_hizmet` | `kalite` (olumsuz). A suspected counterfeit is a doubt about the product itself. |
+| "Satıcının ambalajlaması güzeldi" | `kargo_paketleme` vs `satici_hizmet` | `kargo_paketleme` (olumlu). Packaging care belongs to packaging, even when the seller packed it. Only special requests (gift wrap, notes) go to `satici_hizmet`. |
+| "Nakliyede hasar almış, iade ettim" | `kargo_paketleme` vs `kalite` vs `satici_hizmet` | `kargo_paketleme` (olumsuz). Damage in transport is not a quality defect, and only mentioning a return is not a judgment of the seller: `kalite` and `satici_hizmet` stay `yok`. |
+| "Teşekkürler trendyol" vs "Sizden aldığıma çok memnunum" | `satici_hizmet` vs none | Generic thanks to the platform → `yok`. Direct praise of the store → `satici_hizmet` (olumlu). |
 
 ## 2. Label rules
 
@@ -36,7 +41,7 @@ This is the most important distinction.
 | "Fiyatı 500 TL." | `fiyat` | `notr` | Mentioned as a fact, no judgment |
 | "Ürün çok kaliteli." | `fiyat` | `yok` | Price is not mentioned |
 
-**General statements** that cannot be tied to a specific aspect ("Güzel ürün", "Berbat", "Herkese tavsiye ederim") are labeled `yok` for all aspects. We only label sentiment that clearly refers to one of the 7 aspects.
+**General statements** that cannot be tied to a specific aspect ("Güzel ürün", "Berbat", "Herkese tavsiye ederim", "Pek sevemedim", "Çok kötü bir ürün") are labeled `yok` for all aspects. General liking or disliking is not `islev_performans`. We only label sentiment that clearly refers to one of the 7 aspects.
 
 ### 2.2 Mixed sentiment within the same aspect
 
