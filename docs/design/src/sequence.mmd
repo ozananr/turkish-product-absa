@@ -1,0 +1,24 @@
+sequenceDiagram
+    actor U as User
+    participant UI as Gradio UI (app.py, analyze)
+    participant P as predict() (inference.py)
+
+    U->>UI: Enter review, click Analiz et (or press Enter)
+    UI->>P: predict(text or "")
+
+    alt Valid text (happy path)
+        opt Planned (FR-7), not implemented yet: more than 128 tokens
+            P->>P: Truncate input to 128 tokens
+            Note over P,UI: How the UI learns about truncation is not defined in the contract yet
+        end
+        P-->>UI: dict with all 7 aspects, each {label, confidence}
+        UI->>UI: Split mentioned aspects from yok aspects (FR-4)
+        UI->>UI: Map keys to display names (ASPECT_DISPLAY, LABEL_DISPLAY)
+        UI-->>U: Result table (Özellik, Duygu, Güven) and yok accordion
+    else Empty or whitespace-only text (FR-6)
+        P-->>UI: raises ValueError
+        UI-->>U: Warning message, empty result table
+    else Text is not a str
+        P-->>UI: raises TypeError
+        UI-->>U: Same warning message, empty result table
+    end
