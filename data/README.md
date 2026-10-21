@@ -13,3 +13,5 @@ Shared data location: [reviews_clean.csv (Google Drive)](https://drive.google.co
 To regenerate: `uv run python -m absa.data.pipeline --trsa <TRSAv1.csv> --trendyol <trendyol.csv>`
 
 Labeling sample (`data/interim/labeling_sample.csv`, 2,500 reviews, see `docs/labeling_sample.md`): [Google Drive folder](https://drive.google.com/drive/folders/1ejuDxnYZ26be-paumcfRYs7cSfYUx3cM?usp=sharing). Access is restricted because the source datasets are licensed: ask a team member for access.
+
+LLM pre-labels (`data/interim/prelabels*.csv`, `_stats`, `_cache.jsonl`, see `docs/prelabeling.md`) are stored in the same Drive folder. They are never committed.
