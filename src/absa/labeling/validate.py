@@ -37,6 +37,9 @@ def parse_labels(raw: str | None) -> dict[str, str]:
         data = json.loads(_strip_fence(raw))
     except json.JSONDecodeError as exc:
         raise InvalidResponse(f"JSON değil: {exc.msg}") from exc
+    # Bazı modeller (ör. Gemini) nesneyi tek elemanlı bir listeye sarıyor: [{...}]
+    if isinstance(data, list) and len(data) == 1:
+        data = data[0]
     if not isinstance(data, dict):
         raise InvalidResponse("JSON nesnesi değil")
 

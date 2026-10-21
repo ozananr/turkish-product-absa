@@ -43,3 +43,12 @@ def test_gecersiz_cevaplar_reddedilir(raw):
 
 def test_is_valid_row_yanlis_sirayi_reddeder():
     assert not is_valid_row(dict(reversed(list(VALID.items()))))
+
+
+def test_tek_elemanli_listeye_sarili_nesne_kabul_edilir():
+    assert parse_labels(json.dumps([VALID])) == parse_labels(json.dumps(VALID))
+
+
+def test_birden_fazla_nesneli_liste_reddedilir():
+    with pytest.raises(InvalidResponse):
+        parse_labels(json.dumps([VALID, VALID]))
