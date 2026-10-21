@@ -29,7 +29,7 @@ Fiyatlar: [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing), E
 LLM_API_KEY=<Gemini API anahtarı (AI Studio, faturalandırma açık proje)>
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 LLM_MODEL=gemini-3.5-flash-lite
-LLM_REASONING_EFFORT=none   # düşünme token'larını kapatır (çıktı olarak faturalanır)
+LLM_REASONING_EFFORT=low   # düşünme token'larını azaltır (çıktı olarak faturalanır); Gemini "none" kabul etmiyor
 ```
 
 Model `temperature` ya da `reasoning_effort` kabul etmezse: `LLM_TEMPERATURE=none`, `LLM_REASONING_EFFORT=` (boş).
