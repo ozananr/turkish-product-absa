@@ -15,3 +15,5 @@ To regenerate: `uv run python -m absa.data.pipeline --trsa <TRSAv1.csv> --trendy
 Labeling sample (`data/interim/labeling_sample.csv`, 2,500 reviews, see `docs/labeling_sample.md`): [Google Drive folder](https://drive.google.com/drive/folders/1ejuDxnYZ26be-paumcfRYs7cSfYUx3cM?usp=sharing). Access is restricted because the source datasets are licensed: ask a team member for access.
 
 LLM pre-labels (`data/interim/prelabels*.csv`, `_stats`, `_cache.jsonl`, see `docs/prelabeling.md`) are stored in the same Drive folder. They are never committed.
+
+Verified (human-corrected) labels for the first baseline run (`data/interim/verified_labels.csv`: `review_id`, `text` and the 7 aspect columns, exported from Google Sheets as CSV) are in the same Drive folder. See issue #33.
