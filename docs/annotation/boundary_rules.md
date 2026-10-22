@@ -4,20 +4,25 @@ Rules for labeling cases where aspects or sentiments overlap. These rules comple
 
 ## 1. Aspect overlaps
 
-Sometimes a review can refer to multiple aspects or it is unclear which aspect is being discussed. Below are 10 boundary cases with the agreed-upon decisions to ensure annotator consistency.
+Sometimes a review can refer to multiple aspects or it is unclear which aspect is being discussed. Below are 15 boundary cases with the agreed-upon decisions to ensure annotator consistency. All keys match `src/absa/schema.py`.
 
 | Review (Ambiguous Case) | Conflicting Aspects | Decision & Reason |
 | :--- | :--- | :--- |
 | "Bozuk geldi" | `kargo_paketleme` vs `kalite` | If the outer box is crushed/damaged → `kargo_paketleme` (olumsuz). If the box is fine but the item doesn't work → `kalite` (olumsuz). |
-| "İki günde bozuldu" | `kalite` vs `islev` | `kalite` (olumsuz). Durability and quick breakdown fall under overall product quality. |
-| "Pakette eksik parça vardı" | `kargo_paketleme` vs `satici` | `satici` (olumsuz). Missing items inside an intact package is a preparation error by the seller, not a shipping issue. |
-| "Yanlış beden/renk göndermişler" | `beden_uyum` vs `satici` | `satici` (olumsuz). The product itself isn't necessarily the wrong fit; the seller shipped the wrong item entirely. |
+| "İki günde bozuldu" | `kalite` vs `islev_performans` | `kalite` (olumsuz). Durability and quick breakdown fall under overall product quality. |
+| "Pakette eksik parça vardı" | `kargo_paketleme` vs `satici_hizmet` | `satici_hizmet` (olumsuz). Missing items inside an intact package is a preparation error by the seller, not a shipping issue. |
+| "Yanlış beden/renk göndermişler" | `beden_uyum` vs `satici_hizmet` | `satici_hizmet` (olumsuz). The product itself isn't necessarily the wrong fit; the seller shipped the wrong item entirely. |
 | "Fiyatına göre çok iyi" | `fiyat` vs `kalite` | `fiyat` (olumlu). The primary sentiment is about value for money. `kalite` remains `yok` or `notr` unless explicitly praised. |
-| "Resimdekiyle alakası yok, rengi farklı" | `kalite` vs `gorsel_uyum` | `gorsel_uyum` (olumsuz). The issue is specifically about a mismatch with the advertised image/design, not necessarily poor material quality. |
-| "Kurulumu çok zor, kılavuz yetersiz" | `kalite` vs `kurulum` | `kurulum` (olumsuz). The struggle is explicitly with the assembly and setup process. |
-| "İade ettim paramı haftalarca yatırmadılar" | `satici` vs `fiyat` | `satici` (olumsuz). Refund delays are a customer service/seller behavior issue, independent of the product's price. |
-| "Çalışırken çok fazla ses çıkarıyor" | `kalite` vs `islev` | `islev` (olumsuz). If the product works as intended but is annoyingly loud, it is a functional trait rather than a broken/quality defect. |
-| "Hediye paketi istemiştim yapılmamış" | `kargo_paketleme` vs `satici` | `satici` (olumsuz). Failure to fulfill a special request is a seller omission, not standard shipping damage. |
+| "Resimdekiyle alakası yok, rengi farklı" | `kalite` vs `gorunum_tasarim` | `gorunum_tasarim` (olumsuz). The issue is specifically about a mismatch with the advertised image/design, not necessarily poor material quality. |
+| "Kurulumu çok zor, kılavuz yetersiz" | `kalite` vs `islev_performans` | `islev_performans` (olumsuz). There is no separate setup aspect; difficulty of assembly and setup is part of how usable the product is, not a material defect. |
+| "İade ettim paramı haftalarca yatırmadılar" | `satici_hizmet` vs `fiyat` | `satici_hizmet` (olumsuz). Refund delays are a customer service/seller behavior issue, independent of the product's price. |
+| "Çalışırken çok fazla ses çıkarıyor" | `kalite` vs `islev_performans` | `islev_performans` (olumsuz). If the product works as intended but is annoyingly loud, it is a functional trait rather than a broken/quality defect. |
+| "Hediye paketi istemiştim yapılmamış" | `kargo_paketleme` vs `satici_hizmet` | `satici_hizmet` (olumsuz). Failure to fulfill a special request is a seller omission, not standard shipping damage. |
+| "Kokusu çok güzel" / "Kalıcılığı yok, hemen uçuyor" | `kalite` vs `islev_performans` | Sensory properties of cosmetics and scented products (scent, texture, consistency) → `kalite`. Their effect on skin or hair (cleaning, moisturizing, irritation, visible results) and how long they last → `islev_performans`. |
+| "Orijinal olduğunu düşünmüyorum" | `kalite` vs `satici_hizmet` | `kalite` (olumsuz). A suspected counterfeit is a doubt about the product itself. |
+| "Satıcının ambalajlaması güzeldi" | `kargo_paketleme` vs `satici_hizmet` | `kargo_paketleme` (olumlu). Packaging care belongs to packaging, even when the seller packed it. Only special requests (gift wrap, notes) go to `satici_hizmet`. |
+| "Nakliyede hasar almış, iade ettim" | `kargo_paketleme` vs `kalite` vs `satici_hizmet` | `kargo_paketleme` (olumsuz). Damage in transport is not a quality defect, and only mentioning a return is not a judgment of the seller: `kalite` and `satici_hizmet` stay `yok`. |
+| "Teşekkürler trendyol" vs "Sizden aldığıma çok memnunum" | `satici_hizmet` vs none | Generic thanks to the platform → `yok`. Direct praise of the store → `satici_hizmet` (olumlu). |
 
 ## 2. Label rules
 
@@ -36,7 +41,7 @@ This is the most important distinction.
 | "Fiyatı 500 TL." | `fiyat` | `notr` | Mentioned as a fact, no judgment |
 | "Ürün çok kaliteli." | `fiyat` | `yok` | Price is not mentioned |
 
-**General statements** that cannot be tied to a specific aspect ("Güzel ürün", "Berbat", "Herkese tavsiye ederim") are labeled `yok` for all aspects. We only label sentiment that clearly refers to one of the 7 aspects.
+**General statements** that cannot be tied to a specific aspect ("Güzel ürün", "Berbat", "Herkese tavsiye ederim", "Pek sevemedim", "Çok kötü bir ürün") are labeled `yok` for all aspects. General liking or disliking is not `islev_performans`. We only label sentiment that clearly refers to one of the 7 aspects.
 
 ### 2.2 Mixed sentiment within the same aspect
 
