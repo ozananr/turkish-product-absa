@@ -1,0 +1,25 @@
+flowchart LR
+    user(["User"])
+
+    subgraph system["Aspect-based sentiment analysis system (Gradio web UI)"]
+        uc1(["UC-1 Enter a review as free text (FR-1)"])
+        uc2(["UC-2 Start the analysis with the Analiz et button (FR-2)"])
+        uc3(["UC-3 View label and confidence for each of the 7 aspects (FR-3)"])
+        uc4(["UC-4 See mentioned aspects stand out, yok aspects listed separately (FR-4)"])
+        uc5(["UC-5 Run an example review with one click (FR-5)"])
+        uc6(["UC-6 See an error message for empty input (FR-6)"])
+        uc7(["UC-7 Be informed that a long review was truncated (FR-7, planned)"])
+    end
+
+    user --> uc1
+    user --> uc2
+    user --> uc5
+
+    uc2 -. "include" .-> uc3
+    uc3 -. "include" .-> uc4
+    uc6 -. "extend: empty or whitespace-only input" .-> uc2
+    uc7 -. "extend: more than 128 tokens" .-> uc2
+    uc5 -. "include" .-> uc2
+
+    classDef planned stroke-dasharray: 5 5,fill:#f3f3f3,color:#555
+    class uc7 planned
