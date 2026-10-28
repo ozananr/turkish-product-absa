@@ -1,7 +1,13 @@
 """Doğrulanmış (insan tarafından kontrol edilmiş) etiketleri okur ve kontrol eder.
 
-Beklenen format: `review_id`, `text` ve 7 aspect sütunu (Google Sheets'ten CSV olarak
-indirilmiş hali). Fazladan sütunlar (ör. notlar) yok sayılır.
+Beklenen format: `review_id`, `text` ve 7 aspect sütunu. Etiketleyici export'ları
+(docs/annotation/labeling_guide.md) ayrıca `annotator` ve `checked` sütunlarını içerir:
+- `checked` sütunu varsa yalnızca `TRUE` olan satırlar kullanılır; diğerleri henüz
+  kontrol edilmemiş LLM önerileridir.
+- Birden fazla dosya birlikte okunabilir (kişi başına export'lar, pilot_checked.csv).
+- Kappa setindeki bir yorum iki etiketleyicide bulunur: etiketler aynıysa bir kez
+  kullanılır, farklıysa (henüz uzlaştırılmamış) kullanılmaz ve raporlanır.
+Diğer fazladan sütunlar (ör. notlar) yok sayılır.
 
 Kontroller: eksik sütun, boş metin, tekrar eden review_id, boş etiket, geçersiz etiket
 (yazım hatası). Yalnızca güvenli düzeltmeler otomatik yapılır (büyük/küçük harf, boşluk,
@@ -31,6 +37,10 @@ class LabelReport:
     invalid_labels: dict[str, dict[str, int]] = field(default_factory=dict)
     auto_fixed: int = 0
     dropped_ids: list[str] = field(default_factory=list)
+    files: int = 1
+    unchecked_skipped: int = 0
+    kappa_agreed: int = 0
+    conflicting_ids: list[str] = field(default_factory=list)
 
     @property
     def has_problems(self) -> bool:
@@ -55,9 +65,19 @@ def check_labels(df: pd.DataFrame) -> tuple[pd.DataFrame, LabelReport]:
     if report.missing_columns:
         return df.iloc[0:0][[c for c in REQUIRED_COLUMNS if c in df.columns]], report
 
-    df = df[REQUIRED_COLUMNS].fillna("").astype(str).copy()
+    has_annotator = "annotator" in df.columns
+    cols = REQUIRED_COLUMNS + (["annotator"] if has_annotator else [])
+    df = df[cols].fillna("").astype(str).copy()
     df["review_id"] = df["review_id"].str.strip()
     df["text"] = df["text"].str.strip()
+    for aspect in ASPECTS:
+        raw = df[aspect]
+        fixed = raw.map(_normalize)
+        report.auto_fixed += int((fixed != raw).sum())
+        df[aspect] = fixed
+    if has_annotator:
+        df = _resolve_cross_annotator(df, report)
+    df = df[REQUIRED_COLUMNS].reset_index(drop=True)
     bad = pd.Series(False, index=df.index)
 
     empty_text = df["text"] == ""
@@ -69,11 +89,7 @@ def check_labels(df: pd.DataFrame) -> tuple[pd.DataFrame, LabelReport]:
     bad |= duplicated
 
     for aspect in ASPECTS:
-        raw = df[aspect]
-        fixed = raw.map(_normalize)
-        report.auto_fixed += int((fixed != raw).sum())
-        df[aspect] = fixed
-
+        fixed = df[aspect]
         empty = fixed == ""
         if empty.any():
             report.empty_labels[aspect] = df.loc[empty, "review_id"].tolist()
@@ -86,10 +102,47 @@ def check_labels(df: pd.DataFrame) -> tuple[pd.DataFrame, LabelReport]:
     return df[~bad].reset_index(drop=True), report
 
 
-def load_labels(path: str | Path) -> tuple[pd.DataFrame, LabelReport]:
-    """CSV'yi okur (UTF-8, BOM olsa da olur) ve check_labels'tan geçirir."""
+def _resolve_cross_annotator(df: pd.DataFrame, report: LabelReport) -> pd.DataFrame:
+    """Aynı yorumu farklı etiketleyiciler etiketlediyse (kappa seti): aynıysa bir kez tut,
+    farklıysa hiçbirini kullanma. Aynı etiketleyicideki tekrarlar dokunulmadan bırakılır
+    (check_labels onları tekrar eden id olarak raporlar)."""
+    per_review = df.drop_duplicates(subset=["review_id", "annotator"])
+    multi = per_review[per_review["review_id"].duplicated(keep=False)]
+    if multi.empty:
+        return df
+    n_label_sets = multi.groupby("review_id")[ASPECTS].nunique().max(axis=1)
+    agreed = set(n_label_sets[n_label_sets == 1].index)
+    conflicting = set(n_label_sets[n_label_sets > 1].index)
+    report.kappa_agreed = len(agreed)
+    report.conflicting_ids = sorted(conflicting)
+    df = df[~df["review_id"].isin(conflicting)]
+    # Uzlaşılmış kappa yorumlarından yalnızca biri kalsın.
+    keep = ~(df["review_id"].isin(agreed) & df.duplicated(subset=["review_id"]))
+    return df[keep]
+
+
+def _read(path: str | Path) -> tuple[pd.DataFrame, int]:
+    """Bir CSV'yi okur; `checked` sütunu varsa yalnızca TRUE satırları döner."""
     df = pd.read_csv(path, dtype=str, keep_default_na=False, encoding="utf-8-sig")
-    return check_labels(df)
+    if "checked" not in df.columns:
+        return df, 0
+    checked = df["checked"].str.strip().str.upper() == "TRUE"
+    return df[checked], int((~checked).sum())
+
+
+def load_labels(paths: str | Path | list[str | Path]) -> tuple[pd.DataFrame, LabelReport]:
+    """Bir ya da birden fazla CSV'yi okur (UTF-8, BOM olsa da olur), birleştirir ve kontrol eder."""
+    if isinstance(paths, (str, Path)):
+        paths = [paths]
+    frames, skipped = [], 0
+    for path in paths:
+        df, n = _read(path)
+        frames.append(df)
+        skipped += n
+    clean, report = check_labels(pd.concat(frames, ignore_index=True))
+    report.files = len(paths)
+    report.unchecked_skipped = skipped
+    return clean, report
 
 
 def class_distribution(df: pd.DataFrame) -> pd.DataFrame:

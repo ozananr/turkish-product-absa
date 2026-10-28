@@ -66,3 +66,44 @@ def test_sinif_dagilimi_ve_nadir_siniflar():
     rare = rare_classes(dist, min_count=2)
     assert ("kalite", "olumlu", 1) in rare and ("fiyat", "notr", 0) in rare
     assert ("fiyat", "yok", 3) not in rare
+
+
+def _export(rows, annotator, checked):
+    df = pd.DataFrame(rows)
+    df["annotator"] = annotator
+    df["checked"] = checked
+    df["note"] = ""
+    return df
+
+
+def test_yalnizca_checked_satirlar_ve_birden_fazla_dosya(tmp_path):
+    a = _export([_row("r1", kalite="olumlu"), _row("r2")], "ozan", ["TRUE", "FALSE"])
+    b = _export([_row("r3", fiyat="olumsuz")], "salih", ["true"])
+    pilot = pd.DataFrame([_row("r4", beden_uyum="olumsuz")])  # checked sütunu yok
+    paths = []
+    for name, df in [("a", a), ("b", b), ("pilot", pilot)]:
+        paths.append(tmp_path / f"{name}.csv")
+        df.to_csv(paths[-1], index=False)
+    clean, report = load_labels(paths)
+    assert sorted(clean["review_id"]) == ["r1", "r3", "r4"]
+    assert report.files == 3 and report.unchecked_skipped == 1
+    assert list(clean.columns) == ["review_id", "text", *ASPECTS]
+
+
+def test_kappa_seti_ayni_etiket_bir_kez_farkli_etiket_kullanilmaz():
+    df = pd.concat(
+        [
+            _export([_row("k1", kalite="olumlu"), _row("k2", fiyat="olumlu")], "ozan", "TRUE"),
+            _export([_row("k1", kalite="olumlu"), _row("k2", fiyat="notr")], "salih", "TRUE"),
+        ]
+    )
+    clean, report = check_labels(df)
+    assert clean["review_id"].tolist() == ["k1"]
+    assert report.kappa_agreed == 1 and report.conflicting_ids == ["k2"]
+    assert not report.has_problems  # kappa anlaşmazlığı format hatası değildir
+
+
+def test_ayni_etiketleyicide_tekrar_hala_hata():
+    df = _export([_row("r1"), _row("r1")], "ozan", "TRUE")
+    clean, report = check_labels(df)
+    assert report.duplicate_ids == ["r1"] and len(clean) == 1
