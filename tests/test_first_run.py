@@ -70,3 +70,16 @@ def test_main_dosyalari_yazar(tmp_path):
     assert (out / "report.md").read_text(encoding="utf-8").startswith("> Pipeline check")
     metrics = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["n_test"] == 24 and "always_yok" in metrics
+
+
+def test_main_birden_fazla_dosya_ve_checked(tmp_path):
+    df = _labels()
+    a, b = df.iloc[:60].copy(), df.iloc[60:].copy()
+    a["annotator"], a["checked"] = "ozan", ["TRUE"] * 50 + ["FALSE"] * 10
+    pa, pb = tmp_path / "export_ozan.csv", tmp_path / "pilot.csv"
+    a.to_csv(pa, index=False)
+    b.to_csv(pb, index=False)
+    out = tmp_path / "out"
+    main(["--labels", str(pa), str(pb), "--out", str(out)])
+    md = (out / "report.md").read_text(encoding="utf-8")
+    assert "Files: 2. Checked rows: 110 (not checked yet, skipped: 10)" in md

@@ -3,8 +3,9 @@
 Amaç skoru değil, hattın çalıştığını görmek: etiketler -> baseline -> metrikler.
 Bu sayılar final raporda kullanılmaz.
 
-Kullanım:
-    uv run python -m absa.models.first_run --labels data/interim/verified_labels.csv
+Kullanım (bir ya da birden fazla export; checked sütunu varsa yalnızca TRUE satırlar):
+    uv run python -m absa.models.first_run --labels \
+        data/interim/labeling/export_ozan.csv data/interim/pilot_checked.csv
 
 Çıktılar (--out, varsayılan outputs/baseline_first_run/, git'e girmez):
     report.md     issue'ya yapıştırılacak rapor
@@ -86,9 +87,16 @@ def render_report(report: LabelReport, dist: pd.DataFrame, n_clean: int, results
         "final report.",
         "",
         "### Data",
-        f"- Rows in file: {report.total_rows}, usable: {n_clean}, "
+        f"- Files: {report.files}. Checked rows: {report.total_rows} "
+        f"(not checked yet, skipped: {report.unchecked_skipped}), usable reviews: {n_clean}, "
         f"dropped: {len(report.dropped_ids)}, auto-fixed labels: {report.auto_fixed}",
     ]
+    if report.kappa_agreed or report.conflicting_ids:
+        lines.append(
+            f"- Kappa set: {report.kappa_agreed} reviews labeled the same by both annotators "
+            f"(used once), {len(report.conflicting_ids)} with different labels "
+            "(not used until adjudicated)"
+        )
     problems = [
         ("Missing columns", report.missing_columns),
         ("Empty text", report.empty_text),
@@ -144,7 +152,13 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--labels", type=Path, default=Path("data/interim/verified_labels.csv"))
+    parser.add_argument(
+        "--labels",
+        type=Path,
+        nargs="+",
+        default=[Path("data/interim/verified_labels.csv")],
+        help="bir ya da birden fazla etiket CSV'si (etiketleyici export'ları, pilot_checked.csv)",
+    )
     parser.add_argument("--out", type=Path, default=Path("outputs/baseline_first_run"))
     parser.add_argument("--test-size", type=float, default=DEFAULT_TEST_SIZE)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)

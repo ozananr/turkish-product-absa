@@ -16,4 +16,4 @@ Labeling sample (`data/interim/labeling_sample.csv`, 2,500 reviews, see `docs/la
 
 LLM pre-labels (`data/interim/prelabels*.csv`, `_stats`, `_cache.jsonl`, see `docs/prelabeling.md`) are stored in the same Drive folder. They are never committed.
 
-Verified (human-corrected) labels for the first baseline run (`data/interim/verified_labels.csv`: `review_id`, `text` and the 7 aspect columns, exported from Google Sheets as CSV) are in the same Drive folder. See issue #33.
+Verified (human-corrected) labels are the annotator exports from the labeling sheets (`review_id`, `text`, 7 aspects, `annotator`, `checked`; see `docs/annotation/labeling_guide.md`). Only rows with `checked = TRUE` are used. They stay on Drive and are never committed.
