@@ -68,25 +68,35 @@ def is_valid_row(labels: dict[str, str]) -> bool:
     return list(labels) == ASPECTS and all(labels[a] in LABELS for a in ASPECTS)
 
 
+EXPORT_COLUMNS = ["review_id", "text", *ASPECTS, "annotator"]
+
+
 def validate_labels(df: pd.DataFrame) -> list[str]:
-    """Hata mesajlarının listesini döndürür. Boş liste = geçerli."""
+    """Etiketleyici export'unu kontrol eder. Hata mesajlarının listesini döner; boş liste = geçerli.
 
-    required = ["review_id", "text", *ASPECTS]
-
-    missing = [c for c in required if c not in df.columns]
-
+    Aynı review_id iki farklı etiketleyicide olabilir (kappa seti), aynı etiketleyicide olamaz.
+    """
+    missing = [c for c in EXPORT_COLUMNS if c not in df.columns]
     if missing:
         return [f"Eksik sütun: {missing}"]
-
     errors = []
-
-    if df["review_id"].duplicated().any():
-        errors.append("Tekrar eden review_id var.")
-
+    df = df.fillna("").astype(str)
+    duplicated = df.duplicated(subset=["review_id", "annotator"])
+    if duplicated.any():
+        errors.append(f"Aynı etiketleyicide tekrar eden review_id: {_ids(df[duplicated])}")
+    empty_text = df["text"].str.strip() == ""
+    if empty_text.any():
+        errors.append(f"Boş metin: {_ids(df[empty_text])}")
+    empty_annotator = df["annotator"].str.strip() == ""
+    if empty_annotator.any():
+        errors.append(f"annotator boş: {_ids(df[empty_annotator])}")
     for a in ASPECTS:
-        bad = df[~df[a].isin(LABELS)]
-
-        if not bad.empty:
-            errors.append(f"{a}: geçersiz değer, satırlar {list(bad.index[:5])}")
-
+        bad = ~df[a].isin(LABELS)
+        if bad.any():
+            values = sorted(set(df.loc[bad, a]))
+            errors.append(f"{a}: geçersiz değer {values}, satırlar {_ids(df[bad])}")
     return errors
+
+
+def _ids(rows: pd.DataFrame, limit: int = 5) -> list[str]:
+    return rows["review_id"].head(limit).tolist()

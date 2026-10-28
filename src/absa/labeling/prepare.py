@@ -1,96 +1,195 @@
+"""Etiketleme dosyalarını hazırlar: kappa seti ve kişi başına batch'ler (issue #32).
+
+Kullanım:
+    uv run python -m absa.labeling.prepare \
+        --annotators ozan salih yusuf --kappa-annotators ozan salih
+
+Girdiler (data/interim/, Drive'dan indirilir):
+    prelabels.csv       review_id, text ve 7 aspect için LLM ön etiketleri (#31)
+    pilot_checked.csv   pilotta ön etiket görülerek kontrol edilen 50 yorum; kappa setine girmez
+
+Çıktılar (data/interim/labeling/, git'e girmez, Google Sheets'e yüklenir):
+    kappa_<isim>.csv      kappa setini etiketleyecek iki kişiye aynı 200 yorum, ön etiketsiz
+    batch_<isim>.csv      kalan yorumlar, her kişiye çakışmasız bir parça, ön etiketli;
+                          kappa yapan iki kişinin batch'i 200 yorum küçüktür, herkesin
+                          toplam işi eşit olur; satırlar karışık sırada (yukarıdan
+                          aşağı etiketlenir, yarıda kalsa da etiketli kısım temsilidir)
+    kappa_prelabels.csv   kappa yorumlarının LLM etiketleri; etiketleyicilere verilmez,
+                          sonra LLM ile insanları karşılaştırmak için saklanır
+    assignment.md         hangi dosya kimin, kaç yorum (dokümana ve issue'ya kopyalanır)
+
+Aynı girdiler ve aynı seed her zaman aynı dosyaları üretir.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from absa.schema import ASPECTS, LABELS
+from absa.labeling.validate import is_valid_row
+from absa.schema import ASPECTS
 
-# C:\ klasöründeki dosyaları okurken \r ve \l hatası almamak için / kullanıyoruz:
-sample = pd.read_csv("C:/reviews_clean.csv")
-pre = pd.read_csv("C:/prelabels.csv")
+DEFAULT_KAPPA_SIZE = 200
+DEFAULT_SEED = 42
+# Etiketleyicinin göreceği sütunlar. Puan, kaynak etiketi, ürün adı gibi bilgiler
+# bilerek dışarıda: etiket yalnızca metne göre verilir (boundary_rules.md 2.5).
+SHEET_COLUMNS = ["review_id", "text", *ASPECTS, "annotator", "checked", "note"]
 
-df = sample.merge(pre, on="review_id", how="inner")
-print(f"Satır Sayıları -> Sample: {len(sample)}, Pre: {len(pre)}, Merge: {len(df)}")
 
-print("\n--- Etiket Kontrolü ---")
-for a in ASPECTS:
-    bad = df[~df[a].isin(LABELS)]
-    if len(bad) > 0:
-        print(f"Uyarı: {a} sütununda geçersiz etiket var: {len(bad)} adet")
-    else:
-        print(f"Temiz: {a} sütunu")
+def load_prelabels(path: Path) -> pd.DataFrame:
+    """prelabels.csv'yi okur, yalnızca gereken sütunları alır ve kontrol eder."""
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
+    missing = [c for c in ["review_id", "text", *ASPECTS] if c not in df.columns]
+    if missing:
+        raise ValueError(f"{path}: eksik sütun {missing}")
+    df = df[["review_id", "text", *ASPECTS]]
+    if df["review_id"].duplicated().any():
+        raise ValueError(f"{path}: tekrar eden review_id var")
+    invalid = [rid for rid, row in zip(df["review_id"], df[ASPECTS].to_dict("records"), strict=True)
+               if not is_valid_row(row)]  # fmt: skip
+    if invalid:
+        raise ValueError(f"{path}: geçersiz etiketli satırlar {invalid[:5]}")
+    # Sıralama, dosyadaki satır sırası değişse de aynı sonucu verir.
+    return df.sort_values("review_id").reset_index(drop=True)
 
-# Sonucu nereye kaydetmek istiyorsanız orayı belirtiyoruz
-# Yine / kullanarak C'nin içine kaydediyoruz
-df.to_csv("C:/Users/yusuf/OneDrive/Desktop/Medikalmaster_prelabeled.csv", index=False)
-print("\nİşlem tamamlandı. 'master_prelabeled.csv' oluşturuldu.")
 
-# --- ADIM 3: KAPPA KÜMESİNİ AYIRMA ---
-print("\n--- Kappa Kümesi Hazırlanıyor ---")
+def load_ids(path: Path | None) -> set[str]:
+    if path is None or not path.exists():
+        return set()
+    return set(pd.read_csv(path, dtype=str, usecols=["review_id"])["review_id"])
 
-kappa = df.sample(200, random_state=42)
-rest = df.drop(kappa.index)
 
-# BURASI DÜZELTİLDİ: 'text_x' olarak alıp, adını tekrar 'text' yapıyoruz
-blank = kappa[["review_id", "text_x"]].copy()
-blank = blank.rename(columns={"text_x": "text"})
+def select_kappa(df: pd.DataFrame, size: int, seed: int, exclude: set[str]) -> pd.DataFrame:
+    """Kappa setini seçer. exclude içindeki yorumlar (pilot) seçilmez."""
+    candidates = df[~df["review_id"].isin(exclude)]
+    if len(candidates) < size:
+        raise ValueError(f"Kappa seti için {size} yorum gerekli, {len(candidates)} aday var")
+    return candidates.sample(n=size, random_state=seed).sort_values("review_id")
 
-for a in ASPECTS:
-    blank[a] = ""  # Ön etiket YOK
 
-blank.to_csv("kappa_set_blank.csv", index=False)
-kappa.to_csv("kappa_set_with_prelabels.csv", index=False)
-rest.to_csv("remaining_prelabeled.csv", index=False)
-# --- ADIM 4: KALAN YORUMLARI ÜÇE BÖLME ---
-print("\n--- Kalan Yorumlar 3'e Bölünüyor ---")
+def batch_sizes(n_rest: int, names: list[str], kappa_names: list[str], kappa_size: int) -> dict:
+    """Herkesin toplam işi (batch + kappa) eşit olacak şekilde batch boyutları.
 
-# Önce 'rest' (kalanlar) tablosunu da temizleyelim
-if "text_x" in rest.columns:
-    rest = rest.rename(columns={"text_x": "text"})
-if "text_y" in rest.columns:
-    rest = rest.drop(columns=["text_y"])  # Fazlalık sütunu sil
+    Kappa setini etiketleyen iki kişi o 200 yorumu fazladan etiketlediği için
+    batch'leri o kadar küçük olur.
+    """
+    total = n_rest + kappa_size * len(kappa_names)
+    base, extra = divmod(total, len(names))
+    sizes = {}
+    for i, name in enumerate(names):
+        sizes[name] = base + (1 if i < extra else 0) - (kappa_size if name in kappa_names else 0)
+    if min(sizes.values()) < 0:
+        raise ValueError("Kappa seti, kalan yorumlara göre çok büyük")
+    return sizes
 
-# Veriyi tamamen rastgele karıştırıyoruz
-rest = rest.sample(frac=1, random_state=42)
 
-# --- DÜZELTİLEN KISIM BURASI ---
-# Doğrudan tabloyu değil, satır numaralarını 3'e bölüyoruz
-indices = np.array_split(rest.index, 3)
-parts = [rest.loc[idx] for idx in indices]
-# -------------------------------
+def split_batches(df: pd.DataFrame, sizes: dict[str, int], seed: int) -> dict[str, pd.DataFrame]:
+    """Yorumları karıştırıp verilen boyutlarda çakışmasız parçalara böler.
 
-# Dokümantasyon (README vb.) için tablo hazırlığı
-print("\n📝 DOKÜMANTASYONA EKLENECEK TABLO:")
-print("| Etiketleyici | Dosya Adı | Yorum Sayısı | Örnek ID Aralığı (Min-Max) |")
-print("|---|---|---|---|")
+    Batch'ler karışık sırada kalır, review_id'ye göre sıralanmaz: ID'ler kaynağa göre
+    başladığı için (trendyol_..., trsa_...) sıralı bir batch'in ilk yarısı tek kaynaktan
+    olurdu. Karışık sırada, yarıda kalan bir batch'in etiketli kısmı da temsili olur.
+    """
+    shuffled = df.sample(frac=1, random_state=seed)
+    bounds = np.cumsum([0, *sizes.values()])
+    return {
+        name: shuffled.iloc[start:end]
+        for name, start, end in zip(sizes, bounds[:-1], bounds[1:], strict=True)
+    }
 
-toplam_yorum = 0
-all_ids = set()
 
-for i, part in enumerate(parts, start=1):
-    dosya_adi = f"batch_person{i}.csv"
-    part.to_csv(dosya_adi, index=False)  # Dosyayı kaydet
+def to_sheet(df: pd.DataFrame, annotator: str, with_prelabels: bool) -> pd.DataFrame:
+    """Google Sheets'e yüklenecek tablo. Ön etiketsizse 7 aspect sütunu boş kalır."""
+    sheet = df[["review_id", "text", *ASPECTS]].copy()
+    if not with_prelabels:
+        sheet[ASPECTS] = ""
+    sheet["annotator"] = annotator
+    sheet["checked"] = "FALSE"
+    sheet["note"] = ""
+    return sheet[SHEET_COLUMNS].reset_index(drop=True)
 
-    kisi_yorum_sayisi = len(part)
-    toplam_yorum += kisi_yorum_sayisi
 
-    # Kesişim kontrolü için benzersiz ID'leri topluyoruz
-    all_ids.update(part["review_id"].tolist())
+def prepare(
+    prelabels: pd.DataFrame,
+    annotators: list[str],
+    kappa_annotators: list[str],
+    exclude_from_kappa: set[str] = frozenset(),
+    kappa_size: int = DEFAULT_KAPPA_SIZE,
+    seed: int = DEFAULT_SEED,
+) -> dict[str, pd.DataFrame]:
+    """Dosya adı -> tablo. Dosyaları yazmaz; main() yazar, testler doğrudan kontrol eder."""
+    if len(set(annotators)) != len(annotators):
+        raise ValueError("Etiketleyici isimleri tekrar ediyor")
+    if len(kappa_annotators) != 2 or not set(kappa_annotators) <= set(annotators):
+        raise ValueError("--kappa-annotators, --annotators içinden tam olarak 2 kişi olmalı")
 
-    min_id = part["review_id"].min()
-    max_id = part["review_id"].max()
+    kappa = select_kappa(prelabels, kappa_size, seed, exclude_from_kappa)
+    rest = prelabels[~prelabels["review_id"].isin(kappa["review_id"])]
 
-    # Terminale Markdown formatında tablo satırını basıyoruz
-    print(f"| Kişi {i} | `{dosya_adi}` | {kisi_yorum_sayisi} | {min_id} - {max_id} |")
+    files = {f"kappa_{n}.csv": to_sheet(kappa, n, with_prelabels=False) for n in kappa_annotators}
+    sizes = batch_sizes(len(rest), annotators, kappa_annotators, kappa_size)
+    for name, batch in split_batches(rest, sizes, seed).items():
+        files[f"batch_{name}.csv"] = to_sheet(batch, name, with_prelabels=True)
+    files["kappa_prelabels.csv"] = kappa.reset_index(drop=True)
+    return files
 
-# Sağlamlama (Kontrol) Testleri
-print("\n--- Güvenlik Kontrolü ---")
-if toplam_yorum == len(rest):
-    print(f"✅ Matematik doğru: Parçaların toplamı ({toplam_yorum}) kalan yoruma eşit.")
-else:
-    print(
-        f"❌ HATA: Yorum sayıları tutmuyor! (Toplam: {toplam_yorum}, Olması Gereken: {len(rest)})"
+
+def assignment_markdown(files: dict[str, pd.DataFrame], seed: int) -> str:
+    lines = [
+        f"Seed: {seed}. Source: `prelabels.csv` (LLM pre-labels, prompt v2).",
+        "",
+        "| File | Annotator | Reviews | Pre-labels |",
+        "|---|---|---:|---|",
+    ]
+    for name, df in files.items():
+        if name == "kappa_prelabels.csv":
+            continue
+        prelabeled = "yes" if name.startswith("batch_") else "no (kappa set)"
+        lines.append(f"| `{name}` | {df['annotator'].iloc[0]} | {len(df)} | {prelabeled} |")
+    kappa = files["kappa_prelabels.csv"]
+    lines.append(
+        f"\n`kappa_prelabels.csv` ({len(kappa)} reviews): LLM labels of the kappa set. "
+        "Not given to annotators; kept to compare the LLM with humans later."
     )
+    return "\n".join(lines)
 
-if len(all_ids) == len(rest):
-    print("✅ Hiçbir yorum birden fazla kişiye gitmedi (Kesişim yok).")
-else:
-    print("❌ HATA: Bazı yorumlar farklı kişilere aynı anda gitmiş!")
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--prelabels", type=Path, default=Path("data/interim/prelabels.csv"))
+    parser.add_argument(
+        "--exclude-from-kappa", type=Path, default=Path("data/interim/pilot_checked.csv")
+    )
+    parser.add_argument("--out", type=Path, default=Path("data/interim/labeling"))
+    parser.add_argument("--annotators", nargs="+", required=True, help="ör. ozan salih yusuf")
+    parser.add_argument("--kappa-annotators", nargs=2, required=True, help="ör. ozan salih")
+    parser.add_argument("--kappa-size", type=int, default=DEFAULT_KAPPA_SIZE)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    args = parser.parse_args(argv)
+
+    exclude = load_ids(args.exclude_from_kappa)
+    files = prepare(
+        load_prelabels(args.prelabels),
+        args.annotators,
+        args.kappa_annotators,
+        exclude,
+        args.kappa_size,
+        args.seed,
+    )
+    args.out.mkdir(parents=True, exist_ok=True)
+    for name, df in files.items():
+        df.to_csv(args.out / name, index=False)
+    summary = assignment_markdown(files, args.seed)
+    (args.out / "assignment.md").write_text(summary, encoding="utf-8")
+    print(f"Kappa setinden hariç tutulan yorum: {len(exclude)}")
+    print(summary)
+    print(f"\nYazıldı: {args.out}/")
+
+
+if __name__ == "__main__":
+    main()
