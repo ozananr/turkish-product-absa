@@ -1,0 +1,36 @@
+flowchart LR
+    user(["User (browser)"])
+
+    subgraph ui["Presentation layer: app.py (Gradio)"]
+        analyze["analyze(text)\nTextbox, Analiz et button, examples,\nresult table, yok accordion"]
+    end
+
+    subgraph core["Core package: src/absa"]
+        predict["inference.predict(text)\nsrc/absa/inference.py"]
+        schema["schema.py\nASPECTS, LABELS, NO_MENTION,\nASPECT_DISPLAY, LABEL_DISPLAY"]
+        model["Model behind predict()\nnow: deterministic mock\nWeek 6: real model (BERTurk)"]
+    end
+
+    subgraph offline["Offline: data and model development"]
+        data["absa.data\nloader, masker, cleaner, pipeline,\nkeywords, categories, sampling"]
+        files[("data/raw, data/interim\nlocal files, never committed")]
+        baseline["models.baseline\nTF-IDF + Logistic Regression"]
+        evaluate["models.evaluate\nshared evaluation (macro-F1, confusion matrix)"]
+    end
+
+    user -->|"review text"| analyze
+    analyze -->|"predict(text)"| predict
+    predict -->|"7 aspects: label, confidence"| analyze
+    analyze -->|"display names"| schema
+    predict -->|"aspect and label names"| schema
+    predict --> model
+
+    data -->|"reads and writes"| files
+    files -->|"labeled data"| baseline
+    baseline --> evaluate
+    baseline -->|"aspect names"| schema
+    evaluate -->|"aspect and label names"| schema
+    files -.->|"planned: training data"| model
+
+    classDef planned stroke-dasharray: 5 5,fill:#f3f3f3,color:#555
+    class model planned
