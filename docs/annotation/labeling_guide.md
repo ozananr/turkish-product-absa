@@ -72,3 +72,64 @@ uv run python -c "import pandas as pd; from absa.labeling.validate import valida
 ## 6. Data policy
 
 All sheets and exports stay in the restricted Drive folder. They are never committed (the data guard blocks `.csv` files).
+
+## 7. Agreement, adjudication and LLM comparison (#51, #52)
+
+All commands read exports and write results under `data/interim/`; none of these files are committed.
+
+### 7.1 Kappa on the overlap set
+
+Both kappa annotators export their 200 reviews (all rows `checked`) and validate them (section 5). Then:
+
+```bash
+uv run python -m absa.labeling.compare \
+    --pred data/interim/labeling/export_kappa_ozan.csv \
+    --gold data/interim/labeling/export_kappa_salih.csv
+```
+
+The output has the kappa per aspect and the **mean kappa**: the mean over the aspects that have a defined kappa. An aspect that is `yok` in every review of both files has no defined kappa and is shown as `-`; it is left out of the mean. The columns "mentioned (human / LLM)" mean "annotator 2 / annotator 1" here. The disagreements are written to a CSV next to the `--pred` file. Target: kappa of at least 0.60.
+
+### 7.2 Adjudication
+
+One final label per aspect for each of the 200 reviews.
+
+1. Create the list of disagreements. Cells where both annotators agree are final automatically.
+
+   ```bash
+   uv run python -m absa.labeling.adjudicate conflicts \
+       --a data/interim/labeling/export_kappa_ozan.csv \
+       --b data/interim/labeling/export_kappa_salih.csv \
+       --names ozan salih --out data/interim/labeling/conflicts.csv
+   ```
+
+2. Upload `conflicts.csv` to Google Sheets. Each row is one review and aspect with both labels. Decide together and fill the empty `final` column (dropdown: `yok`, `olumlu`, `olumsuz`, `notr`). Download it as CSV (`conflicts_filled.csv`).
+3. Create the final file:
+
+   ```bash
+   uv run python -m absa.labeling.adjudicate finalize \
+       --a data/interim/labeling/export_kappa_ozan.csv \
+       --b data/interim/labeling/export_kappa_salih.csv \
+       --decisions data/interim/labeling/conflicts_filled.csv \
+       --out data/interim/labeling/kappa_final.csv
+   ```
+
+   It fails with a list of the cells that still have no valid decision. `kappa_final.csv` has one row per review, `annotator=final` and `checked=TRUE`, so `absa.data.labels.load_labels` reads it like any other export. Upload it to Drive `absa-data/final/`.
+
+If the guidelines change and the kappa set is labeled again, run the steps again with the new exports.
+
+### 7.3 LLM vs human labels and label distribution
+
+```bash
+uv run python -m absa.labeling.report \
+    --prelabels data/interim/prelabels.csv --final data/interim/final_labels.csv \
+    --kappa-prelabels data/interim/labeling/kappa_prelabels.csv \
+    --kappa-final data/interim/labeling/kappa_final.csv
+```
+
+It prints three tables (also written to `data/interim/report_52/report.md`):
+
+1. LLM pre-labels vs final labels on the **batch** reviews (the kappa-set reviews are removed from `final_labels.csv` first): label accuracy (= share left unchanged), missed, extra and wrong-sentiment counts per aspect.
+2. LLM vs the adjudicated kappa set, which was labeled **without** LLM suggestions. A much lower agreement than in table 1 means the visible suggestions influenced the annotators.
+3. Label distribution of all final labels and the rare classes (fewer than 30 examples).
+
+`kappa_prelabels.csv` is in `absa-data/labeling/private/`. Open it only after both kappa exports are finished.
