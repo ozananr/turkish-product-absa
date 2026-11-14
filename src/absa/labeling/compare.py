@@ -55,10 +55,14 @@ def compare(pred: pd.DataFrame, gold: pd.DataFrame) -> tuple[dict, pd.DataFrame]
 
     pred_m = merged[[f"{a}_pred" for a in ASPECTS]].to_numpy()
     gold_m = merged[[f"{a}_gold" for a in ASPECTS]].to_numpy()
+    # Genel kappa: kappa'sı tanımlı olan aspect'lerin ortalaması ("-" olanlar dahil edilmez).
+    kappas = [m["kappa"] for m in per_aspect.values() if m["kappa"] is not None]
     summary = {
         "reviews": len(merged),
         "review_exact_match": round(float((pred_m == gold_m).all(axis=1).mean()), 3),
         "label_accuracy": round(float((pred_m == gold_m).mean()), 3),
+        "mean_kappa": round(sum(kappas) / len(kappas), 3) if kappas else None,
+        "kappa_defined": len(kappas),
         "per_aspect": per_aspect,
     }
     return summary, pd.DataFrame(rows, columns=["review_id", "aspect", "llm", "gold", "text"])
@@ -69,6 +73,12 @@ def render_markdown(s: dict) -> str:
         f"- **Reviews compared:** {s['reviews']}",
         f"- **All 7 labels correct:** {s['review_exact_match']:.1%} of reviews",
         f"- **Label accuracy (reviews x aspects):** {s['label_accuracy']:.1%}",
+        "- **Mean kappa (mean over aspects with a defined kappa):** "
+        + (
+            "-"
+            if s["mean_kappa"] is None
+            else f"{s['mean_kappa']:.2f} ({s['kappa_defined']} of {len(s['per_aspect'])} aspects)"
+        ),
         "",
         "| Aspect | accuracy | kappa | mentioned (human / LLM) | missed | extra | wrong sent. |",
         "|---|---:|---:|---:|---:|---:|---:|",
