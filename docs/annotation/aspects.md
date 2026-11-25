@@ -64,3 +64,4 @@ This document defines the 7 primary aspects used for annotating product reviews.
 **Examples:**
 - "Kendi bedeninizi alabilirsiniz, kalıbı tam oldu."
 - "Ayakkabı kalıbı dar olduğu için ayağımı çok sıktı."
+- "Ürün çok küçük, fotoğrafta olduğundan ufak geldi." (any product, not only clothing)

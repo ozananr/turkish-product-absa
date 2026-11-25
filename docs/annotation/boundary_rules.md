@@ -86,3 +86,17 @@ If the intended meaning is unclear, the annotator adds a note and the case is di
 - **Emojis** count as part of the text and can change the meaning (e.g. 👏 or 🙃 in ironic reviews).
 - **Comparisons** ("Önceki telefonumdan daha hızlı") are labeled by their direction: better → `olumlu`, worse → `olumsuz`.
 - **Expectations and advice** are labeled by what they imply about the product: "Bir beden büyük alın" means the size runs small → `beden_uyum`: `olumsuz`.
+
+## 3. Clarifications after the agreement check (#51)
+
+The kappa check on the 200-review overlap set found low agreement for `kalite`, `satici_hizmet`, `gorunum_tasarim` and `beden_uyum`. The disagreements were caused by rules that exist but were applied differently, or by cases the rules did not spell out. This section restates the existing rules with examples and adds the missing cases. It does not change any earlier decision.
+
+| Review | Aspect(s) | Decision & reason |
+| :--- | :--- | :--- |
+| "Çok vasat, hayal kırıklığı", "Hiç bir güzelliği yok" | all | General statements stay `yok` for **all** aspects, including `kalite` (rule 2.1). `kalite` needs something concrete: material, durability, build, a breakdown, a suspected counterfeit, or the scent and texture of a cosmetic. |
+| "Saçımı döküyor, almayın" / "Sivilcelerimi geçirmedi" | `kalite` vs `islev_performans` | `islev_performans` (olumsuz). The effect of a cosmetic on skin or hair is function. `kalite` stays `yok`. |
+| "Kokusu güzel ama saçı çabuk yağlandırıyor" | `kalite`, `islev_performans` | `kalite` (olumlu) for the scent and `islev_performans` (olumsuz) for the effect. A review that covers both is labeled for each aspect separately. |
+| "Ürün aşırı küçük, minyatür gibi" (not clothing) | `beden_uyum` | `beden_uyum` (olumsuz). Dimensions count for every product, not only for clothes and shoes. "Göründüğünden daha küçük" is also `beden_uyum`, not `gorunum_tasarim`. |
+| "Pakette yalnızca coconut kokulu olan geldi" (wrong or missing variant) | `kargo_paketleme` vs `satici_hizmet` | `satici_hizmet` (olumsuz). The seller prepared the wrong or incomplete order. Same logic as "Pakette eksik parça vardı" and "Yanlış beden/renk göndermişler" in section 1. |
+| "Alt kısmı göründüğü gibi değil" | `gorunum_tasarim` vs `satici_hizmet` | `gorunum_tasarim` (olumsuz). "Not as shown" is a mismatch with the picture. Use `satici_hizmet` only if the text says that a different or wrong item was sent ("yanlış ürün", "başka ürün gönderilmiş"). |
+| "Ürünü ilk kez denedim" | all | `yok`. `notr` is **not** "I am not sure". It means the aspect is mentioned as a fact without judgment, or the positive and negative sides are balanced (section 2.1 and 2.2). When the label is unclear, choose the side the reviewer emphasizes and write the question in `note`. |
