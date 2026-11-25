@@ -43,3 +43,38 @@ def test_karsilastirma_metrikleri():
 def test_ortak_id_yoksa_hata():
     with pytest.raises(ValueError):
         compare(_df([("a", {})]), _df([("b", {})]))
+
+
+def test_genel_kappa_aspect_ortalamasidir():
+    # kalite: tam uyum (kappa 1.0). fiyat: tam uyumsuz (kappa < 0). Diğerleri hep yok (-).
+    pred = _df(
+        [
+            ("r1", {"kalite": "olumlu", "fiyat": "olumlu"}),
+            ("r2", {"kalite": "olumsuz", "fiyat": "olumsuz"}),
+            ("r3", {"kalite": "yok", "fiyat": "olumlu"}),
+            ("r4", {"kalite": "olumlu", "fiyat": "olumsuz"}),
+        ]
+    )
+    gold = _df(
+        [
+            ("r1", {"kalite": "olumlu", "fiyat": "olumsuz"}),
+            ("r2", {"kalite": "olumsuz", "fiyat": "olumlu"}),
+            ("r3", {"kalite": "yok", "fiyat": "olumsuz"}),
+            ("r4", {"kalite": "olumlu", "fiyat": "olumlu"}),
+        ]
+    )
+    summary, _ = compare(pred, gold)
+    per = summary["per_aspect"]
+    assert per["kalite"]["kappa"] == 1.0
+    assert per["fiyat"]["kappa"] < 0
+    assert per["beden_uyum"]["kappa"] is None  # iki dosyada da hep yok
+    assert summary["kappa_defined"] == 2
+    assert summary["mean_kappa"] == round((per["kalite"]["kappa"] + per["fiyat"]["kappa"]) / 2, 3)
+    assert "Mean kappa" in render_markdown(summary)
+
+
+def test_genel_kappa_hic_yoksa_tire():
+    same = _df([("r1", {}), ("r2", {})])
+    summary, _ = compare(same, same)
+    assert summary["mean_kappa"] is None and summary["kappa_defined"] == 0
+    assert "Mean kappa (mean over aspects with a defined kappa):** -" in render_markdown(summary)
