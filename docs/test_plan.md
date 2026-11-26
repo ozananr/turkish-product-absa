@@ -34,6 +34,8 @@ Contract tests live in `tests/test_contract.py` and do not depend on Gradio. The
 | Empty or whitespace-only input raises `ValueError` | `test_empty_input_raises_value_error` |
 | Non-`str` input raises `TypeError` | `test_non_str_input_raises_type_error` |
 | Package imports | `tests/test_smoke.py::test_package_imports` |
+| Turkish characters, emoji-only and punctuation-only inputs satisfy the full contract | `test_predict_edge_cases` |
+| Very long input (10,000 characters) does not raise an exception | `test_predict_very_long_text` |
 
 ### 2.2 Evaluation functions
 
@@ -52,6 +54,13 @@ The TF-IDF baseline (`src/absa/models/baseline.py`) has its own tests in `tests/
 ### 2.3 Data pipeline
 
 Cleaning, masking and sampling code in `src/absa/data/` is covered by `tests/test_cleaner.py`, `tests/test_masker.py`, `tests/test_data_prep.py` (loaders and end-to-end pipeline), `tests/test_keywords.py`, `tests/test_categories.py` and `tests/test_sampling.py` (same seed gives the same sample, category cap, label shares, stable `review_id`). Tests use small synthetic data, never real review files (NFR-4).
+| Behaviour | Test |
+|---|---|
+| Normalization handles edge case inputs | `test_normalize_text_edge_cases` |
+| Cleaning handles edge cases and preserves DataFrame columns | `test_clean_reviews_edge_cases` |
+| Turkish uppercase characters are correctly converted to lowercase | `test_dedup_key_turkish_lowercase` |
+| Masking preserves inputs without personal data | `test_mask_personal_data_edge_cases` |
+| Personal data is masked correctly in very long texts | `test_mask_personal_data_long_text_with_email` |
 
 ### 2.4 UI behaviour
 

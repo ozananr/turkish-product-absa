@@ -64,3 +64,29 @@ def test_empty_input_raises_value_error(bad):
 def test_non_str_input_raises_type_error(bad):
     with pytest.raises(TypeError):
         predict(bad)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "ı ğ ş ö ü ç İ I",
+        "😊😂👍",
+        "!!!...",
+    ],
+)
+def test_predict_edge_cases(text):
+    result = predict(text)
+
+    assert isinstance(result, dict)
+    assert len(result) == 7
+    assert list(result.keys()) == ASPECTS
+
+    for aspect in ASPECTS:
+        assert set(result[aspect].keys()) == {"label", "confidence"}
+        assert result[aspect]["label"] in LABELS
+        assert isinstance(result[aspect]["confidence"], float)
+        assert 0.0 <= result[aspect]["confidence"] <= 1.0
+
+
+def test_predict_very_long_text():
+    predict("a" * 10_000)
