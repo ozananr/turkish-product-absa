@@ -123,13 +123,16 @@ If the guidelines change and the kappa set is labeled again, run the steps again
 uv run python -m absa.labeling.report \
     --prelabels data/interim/prelabels.csv --final data/interim/final_labels.csv \
     --kappa-prelabels data/interim/labeling/kappa_prelabels.csv \
-    --kappa-final data/interim/labeling/kappa_final.csv
+    --kappa-final data/interim/labeling/kappa_final.csv \
+    --exports data/interim/labeling/export_salih.csv data/interim/labeling/export_ozan.csv \
+              data/interim/labeling/export_yusuf.csv
 ```
 
-It prints three tables (also written to `data/interim/report_52/report.md`):
+It prints these tables (also written to `data/interim/report_52/report.md`):
 
 1. LLM pre-labels vs final labels on the **batch** reviews (the kappa-set reviews are removed from `final_labels.csv` first): label accuracy (= share left unchanged), missed, extra and wrong-sentiment counts per aspect.
 2. LLM vs the adjudicated kappa set, which was labeled **without** LLM suggestions. A much lower agreement than in table 1 means the visible suggestions influenced the annotators.
 3. Label distribution of all final labels and the rare classes (fewer than 30 examples).
+4. With `--exports`: the share of LLM pre-labels each annotator changed in their checked batch rows. A share far below the disagreement between the LLM and the kappa set (table 2) means the suggestions were accepted almost unchanged.
 
 `kappa_prelabels.csv` is in `absa-data/labeling/private/`. Open it only after both kappa exports are finished.
