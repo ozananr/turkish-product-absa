@@ -39,4 +39,31 @@ and `split_v1_report.md`.
 
 ## Result (split_v1)
 
-<!-- Paste the content of data/interim/splits/split_v1_report.md below. -->
+### Split sizes
+
+| Split | reviews | share | labels |
+|---|---:|---:|---|
+| train | 1363 | 75.6% | batches (LLM pre-labels, checked) |
+| val | 241 | 13.4% | batches (LLM pre-labels, checked) |
+| test | 200 | 11.1% | adjudicated kappa set (independent human labels) |
+| **total** | **1804** | | |
+
+Near-duplicates of test reviews removed from train/val: 0
+
+### Label distribution per split (olumlu / olumsuz / notr; the rest is `yok`)
+
+| Aspect | train | val | test |
+|---|---|---|---|
+| `kalite` | 168/263/16 | 31/49/3 | 24/33/10 |
+| `fiyat` | 124/56/5 | 30/10/0 | 17/1/2 |
+| `kargo_paketleme` | 123/81/18 | 21/16/3 | 22/10/3 |
+| `satici_hizmet` | 52/117/1 | 11/10/0 | 10/14/2 |
+| `islev_performans` | 264/278/17 | 46/52/7 | 29/33/17 |
+| `gorunum_tasarim` | 65/93/4 | 7/26/2 | 7/15/0 |
+| `beden_uyum` | 54/162/10 | 5/31/1 | 4/22/3 |
+
+### Classes missing from val or test
+
+- `fiyat` / `notr`: val içinde örnek yok
+- `satici_hizmet` / `notr`: val içinde örnek yok
+- `gorunum_tasarim` / `notr`: test içinde örnek yok
