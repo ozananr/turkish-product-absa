@@ -63,3 +63,24 @@ def test_metin_olmayan_girdi():
 def test_count_masks():
     masked = mask_personal_data("a@b.com ve 0555 555 55 55 ve c@d.com")
     assert count_masks(masked) == {"EPOSTA": 2, "TELEFON": 1}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "a" * 10_000,
+        "ı ğ ş ö ü ç İ I",
+        "😊😂👍",
+        "!!!...",
+    ],
+)
+def test_mask_personal_data_edge_cases(text):
+    assert mask_personal_data(text) == text
+
+
+def test_mask_personal_data_long_text_with_email():
+    text = "a" * 10_000 + " test@example.com 😊"
+    expected = "a" * 10_000 + " [EPOSTA] 😊"
+
+    assert mask_personal_data(text) == expected
