@@ -156,7 +156,7 @@ def clean_with_report(
     def step(name: str, keep: pd.Series) -> None:
         nonlocal out
         before = len(out)
-        out = out[keep]
+        out = out.loc[keep.astype(bool)]
         report.add(name, before, len(out))
 
     step("Boş metin", out[text_col].str.len() > 0)

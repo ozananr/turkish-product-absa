@@ -9,6 +9,7 @@ from absa.data.cleaner import (
     is_meaningless,
     is_template,
     is_too_short,
+    normalize_text,
     word_count,
 )
 
@@ -125,3 +126,61 @@ def test_maskeleme_tekrar_tespitinden_once_yapilir():
         }
     )
     assert len(clean_reviews(df)) == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "a" * 10_000,
+        "ı ğ ş ö ü ç İ I",
+        "😊😂👍",
+        "!!!...",
+    ],
+)
+def test_normalize_text_edge_cases(text):
+    assert normalize_text(text) == text
+
+
+@pytest.mark.parametrize(
+    "text,expected_empty",
+    [
+        ("", True),
+        ("a" * 10_000, True),
+        ("ı ğ ş ö ü ç İ I", False),
+        ("😊😂👍", True),
+        ("!!!...", True),
+    ],
+    ids=[
+        "empty",
+        "long_text",
+        "turkish_chars",
+        "emoji_only",
+        "punctuation_only",
+    ],
+)
+def test_clean_reviews_edge_cases(text, expected_empty):
+    df = pd.DataFrame({"text": [text]})
+    cleaned = clean_reviews(df)
+
+    assert isinstance(cleaned, pd.DataFrame)
+    assert "text" in cleaned.columns
+    assert cleaned.empty == expected_empty
+
+    if not expected_empty:
+        assert cleaned["text"].tolist() == [text]
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("İ", "i"),
+        ("I", "ı"),
+        ("İSTANBUL", "istanbul"),
+        ("IŞIK", "ışık"),
+        ("Ğ Ş Ö Ü Ç", "ğ ş ö ü ç"),
+        ("ı ğ ş ö ü ç İ I", "ı ğ ş ö ü ç i ı"),
+    ],
+)
+def test_dedup_key_turkish_lowercase(text, expected):
+    assert dedup_key(text) == expected
