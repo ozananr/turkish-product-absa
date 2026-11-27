@@ -10,8 +10,13 @@
 - Confusion matrix for each aspect to analyze misclassifications.
 
 ## 3. Data Split
-- The dataset will be split into **70% Train / 15% Validation / 15% Test**.
-- A fixed seed will be used across all splits to ensure reproducibility.
+- Split `split_v1` (see `docs/data_split.md`, #53), used by every model:
+  - **test:** the 200 reviews of the adjudicated kappa set (independent human labels, #51)
+  - **train / val:** the remaining 1,604 batch reviews, 85% / 15%, near-duplicates kept in one split
+- The originally planned random 70% / 15% / 15% split was replaced because the batch labels are
+  in practice LLM labels (#52); testing on independent human labels measures agreement with humans.
+- A fixed seed (`random_state=42`) is used for the split and for the models.
+- Hyperparameters are chosen on **val** only; **test** is used once per final model.
 
 ## 4. Experiment Tracking
 For every experimental run, the following information must be recorded:
@@ -19,3 +24,18 @@ For every experimental run, the following information must be recorded:
 - Data version and split configuration.
 - Hyperparameter settings (learning rate, batch size, etc.).
 - Evaluation scores (as defined in the metrics section).
+
+## 5. Experiment Log
+
+| # | Date | Model | Data | Split | Settings | val macro-F1 | test macro-F1 | Notes |
+|---|---|---|---|---|---|---:|---:|---|
+| 0 | – | TF-IDF + LR | first 295 checked reviews | random 80/20 (236 / 59) | as run 1 | – | (0.470) | pipeline check (#33), **not a result**, not comparable |
+| 1 | 2026-11-27 | TF-IDF (1–2 gram, sublinear tf) + LogisticRegression (`class_weight="balanced"`, `max_iter=1000`), one per aspect | `final_labels.csv` (1,804) | `split_v1` (1,363 / 241 / 200) | `random_state=42` | 0.547 | **0.501** | reference for BERTurk; always-`yok`: 0.241 / 0.233; details in `docs/baseline_results.md` (#54) |
+
+Reproduce run 1:
+
+```bash
+uv run python -m absa.models.baseline_full \
+    --labels data/interim/labeling/final_labels.csv \
+    --split data/interim/splits/split_v1.csv
+```
