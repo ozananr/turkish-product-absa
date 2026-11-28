@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import gradio as gr  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from absa.inference import ModelNotFoundError, load, predict  # noqa: E402
+from absa.inference import ModelNotFoundError, is_truncated, load, predict  # noqa: E402
 from absa.schema import ASPECT_DISPLAY, LABEL_DISPLAY, NO_MENTION  # noqa: E402
 
 EXAMPLES = [
@@ -19,13 +19,24 @@ EXAMPLES = [
 
 HEADERS = ["Özellik", "Duygu", "Güven"]
 
+# FR-7: model sınırından uzun yorumlar kesilir ve kullanıcıya söylenir.
+TRUNCATION_NOTE = (
+    "⚠️ Yorum, modelin işleyebileceği uzunluktan (128 token) uzun olduğu için "
+    "yalnızca ilk kısmı analiz edildi."
+)
+
+
+def truncation_note(text: str) -> str:
+    """Yorum kesildiyse kullanıcıya gösterilecek not, kesilmediyse boş metin."""
+    return TRUNCATION_NOTE if is_truncated(text) else ""
+
 
 def analyze(text: str):
     try:
         result = predict(text or "")
     except (ValueError, TypeError):
         gr.Warning("Lütfen analiz etmek için bir yorum yazın.")
-        return pd.DataFrame(columns=HEADERS), ""
+        return pd.DataFrame(columns=HEADERS), "", ""
 
     # "yok" olanlar tabloda gösterilmez; kapalı bir bölümde ayrıca listelenir (FR-4).
     rows = [
@@ -40,7 +51,7 @@ def analyze(text: str):
     hidden = [ASPECT_DISPLAY[a] for a, r in result.items() if r["label"] == NO_MENTION]
     hidden_text = ", ".join(hidden) if hidden else "Yok"
 
-    return pd.DataFrame(rows, columns=HEADERS), hidden_text
+    return pd.DataFrame(rows, columns=HEADERS), hidden_text, truncation_note(text)
 
 
 try:
@@ -56,14 +67,16 @@ with gr.Blocks(title="Özellik Bazlı Duygu Analizi") as demo:
     gr.Markdown(TITLE + (MOCK_NOTE if BACKEND == "mock" else ""))
     review = gr.Textbox(label="Yorum", lines=4, placeholder="Ürün yorumunu buraya yazın...")
     button = gr.Button("Analiz et", variant="primary")
+    note_box = gr.Markdown()
     table = gr.Dataframe(headers=HEADERS, interactive=False, label="Sonuç")
     with gr.Accordion("Bahsedilmeyen özellikler (yok)", open=False):
         hidden_box = gr.Markdown()
 
     gr.Examples(examples=EXAMPLES, inputs=review)
 
-    button.click(analyze, inputs=review, outputs=[table, hidden_box])
-    review.submit(analyze, inputs=review, outputs=[table, hidden_box])
+    outputs = [table, hidden_box, note_box]
+    button.click(analyze, inputs=review, outputs=outputs)
+    review.submit(analyze, inputs=review, outputs=outputs)
 
 if __name__ == "__main__":
     demo.launch(inbrowser=True)
