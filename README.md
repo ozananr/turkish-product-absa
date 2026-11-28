@@ -64,6 +64,11 @@ The app uses the trained BERTurk model (~440 MB). Model weights are not stored i
 1. Download the folder `absa-data/models/berturk_v1` from the team Drive.
 2. Put it into the project so that `models/berturk_v1/absa_config.json` exists:
 
+   ```
+   models/
+   └── berturk_v1/   config.json, model.safetensors, heads.pt, absa_config.json, tokenizer files
+   ```
+
 3. Start the app (the model is loaded once at start, then the browser opens http://127.0.0.1:7860):
 
    ```bash

@@ -41,7 +41,7 @@ uv run python -m absa.nfr --texts data/interim/labeling/final_labels.csv --n 100
 `tests/test_nfr.py::test_girdi_kaydedilmez_ve_loglanmaz` predicts a marked review and checks that
 no file is created and that the text does not appear in log records, stdout or stderr. It runs in
 CI (mock) and locally with the real model. The app keeps no history: Gradio flagging is not used
-and `app.py` does not write the input anywhere. The training data is masked (#18 pipeline).
+and `app.py` does not write the input anywhere. The training data is masked.
 
 ## NFR-6: Windows and Linux
 
