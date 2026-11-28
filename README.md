@@ -36,7 +36,7 @@ The team lead (captain) rotates weekly. See [milestones](https://github.com/ozan
 - **Environment:** [uv](https://docs.astral.sh/uv/), Python 3.12
 - **Code quality:** [Ruff](https://docs.astral.sh/ruff/), pre-commit, pytest
 - **CI:** GitHub Actions
-- **Modeling (planned):** Hugging Face Transformers, BERTurk
+- **Modeling:** Hugging Face Transformers, BERTurk
 
 ## Getting started
 
@@ -56,6 +56,28 @@ Run the checks:
 uv run ruff check .
 uv run pytest
 ```
+
+## Run the app
+
+The app uses the trained BERTurk model (~440 MB). Model weights are not stored in the repository.
+
+1. Download the folder `absa-data/models/berturk_v1` from the team Drive.
+2. Put it into the project so that `models/berturk_v1/absa_config.json` exists:
+
+3. Start the app (the model is loaded once at start, then the browser opens http://127.0.0.1:7860):
+
+   ```bash
+   uv run python app.py
+   ```
+
+Other options:
+
+```bash
+ABSA_MODEL_DIR=/path/to/berturk_v1 uv run python app.py   # model in another folder
+ABSA_BACKEND=mock uv run python app.py                     # no model: mock predictions (UI work)
+```
+
+Load and prediction times on Windows and Linux: [docs/nfr_results.md](docs/nfr_results.md).
 
 ## Project structure
 
