@@ -44,6 +44,8 @@ SAMPLE_TEXTS = [
         "Herkese tavsiye ederim, özellikle günlük kullanım için çok rahat bir ürün."
     ),
 ]
+# Uzun örneği ikiye katla: 128 token'ı kesin aşsın (FR-7 kesme yolu da ölçülsün).
+SAMPLE_TEXTS.append(SAMPLE_TEXTS[-1] + " " + SAMPLE_TEXTS[-1])
 
 
 def summarize(times_s: list[float]) -> dict[str, float]:
