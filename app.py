@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import gradio as gr  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from absa.inference import predict  # noqa: E402
+from absa.inference import ModelNotFoundError, load, predict  # noqa: E402
 from absa.schema import ASPECT_DISPLAY, LABEL_DISPLAY, NO_MENTION  # noqa: E402
 
 EXAMPLES = [
@@ -43,11 +43,17 @@ def analyze(text: str):
     return pd.DataFrame(rows, columns=HEADERS), hidden_text
 
 
+try:
+    # Model uygulama açılırken bir kez yüklenir (NFR-2); ilk analiz beklemez.
+    BACKEND = load()
+except ModelNotFoundError as err:
+    sys.exit(str(err))
+
+TITLE = "# Türkçe Ürün Yorumlarında Özellik Bazlı Duygu Analizi"
+MOCK_NOTE = "\n_Şu an **sahte model** çalışıyor; sonuçlar gerçek tahmin değildir._"
+
 with gr.Blocks(title="Özellik Bazlı Duygu Analizi") as demo:
-    gr.Markdown(
-        "# Türkçe Ürün Yorumlarında Özellik Bazlı Duygu Analizi\n"
-        "_Şu an **sahte model** çalışıyor; sonuçlar gerçek tahmin değildir._"
-    )
+    gr.Markdown(TITLE + (MOCK_NOTE if BACKEND == "mock" else ""))
     review = gr.Textbox(label="Yorum", lines=4, placeholder="Ürün yorumunu buraya yazın...")
     button = gr.Button("Analiz et", variant="primary")
     table = gr.Dataframe(headers=HEADERS, interactive=False, label="Sonuç")
