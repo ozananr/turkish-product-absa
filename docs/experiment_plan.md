@@ -32,7 +32,7 @@ For every experimental run, the following information must be recorded:
 | 0 | – | TF-IDF + LR | first 295 checked reviews | random 80/20 (236 / 59) | as run 1 | – | (0.470) | pipeline check (#33), **not a result**, not comparable |
 | 1 | 2026-11-27 | TF-IDF (1–2 gram, sublinear tf) + LogisticRegression (`class_weight="balanced"`, `max_iter=1000`), one per aspect | `final_labels.csv` (1,804) | `split_v1` (1,363 / 241 / 200) | `random_state=42` | 0.547 | **0.501** | reference for BERTurk; always-`yok`: 0.241 / 0.233; details in `docs/baseline_results.md` (#54) |
 | 2 | 2026-11-28 | BERTurk (`dbmdz/bert-base-turkish-cased`) + 7 linear heads | `final_labels.csv` (1,804) | `split_v1` | sweep: lr 2e-5 / 3e-5 / 5e-5 × class weights off / on; batch 16, 5 epochs, seed 42 | 0.548 – 0.680 | – | best: lr 5e-5, class weights off (0.680); all runs peaked in the last epoch → epoch limit raised to 8 |
-| 3 | 2026-11-28 | same | same | `split_v1` | lr 5e-5, no class weights, batch 16, ≤ 8 epochs, early stopping (patience 2), seeds 42 / 43 / 44 | **0.690 ± 0.011** (42: 0.689, 43: 0.704, 44: 0.676) | – (#66) | selected model: seed 43 → Drive `absa-data/models/berturk_v1/` |
+| 3 | 2026-11-28 | same | same | `split_v1` | lr 5e-5, no class weights, batch 16, ≤ 8 epochs, early stopping (patience 2), seeds 42 / 43 / 44 | **0.690 ± 0.011** (42: 0.689, 43: 0.704, 44: 0.676) | **0.625** (seed 43) | selected model: seed 43 → Drive `absa-data/models/berturk_v1/`; test evaluated once in #66, details in `docs/berturk_results.md` |
 
 Reproduce run 1:
 
