@@ -2,35 +2,39 @@ flowchart LR
     user(["User (browser)"])
 
     subgraph ui["Presentation layer: app.py (Gradio)"]
-        analyze["analyze(text)\nTextbox, Analiz et button, examples,\nresult table, yok accordion"]
+        analyze["analyze(text)\nTextbox, Analiz et button, examples,\nresult table, yok accordion, truncation note"]
     end
 
     subgraph core["Core package: src/absa"]
-        predict["inference.predict(text)\nsrc/absa/inference.py"]
+        predict["inference.predict(text)\nvalidate, preprocess, tokenize (128),\nsoftmax per aspect"]
+        prep["data.cleaner + data.masker\nsame cleaning and masking\nas the training data"]
         schema["schema.py\nASPECTS, LABELS, NO_MENTION,\nASPECT_DISPLAY, LABEL_DISPLAY"]
-        model["Model behind predict()\nnow: deterministic mock\nWeek 6: real model (BERTurk)"]
+        berturk["models.berturk\nBERTurk encoder + 7 linear heads\n(4 labels each)"]
     end
 
-    subgraph offline["Offline: data and model development"]
-        data["absa.data\nloader, masker, cleaner, pipeline,\nkeywords, categories, sampling"]
-        files[("data/raw, data/interim\nlocal files, never committed")]
-        baseline["models.baseline\nTF-IDF + Logistic Regression"]
-        evaluate["models.evaluate\nshared evaluation (macro-F1, confusion matrix)"]
+    weights[("models/berturk_v1/\nweights, tokenizer, absa_config.json\ndownloaded from Drive, never committed")]
+
+    subgraph offline["Offline: data, labeling and training"]
+        data["absa.data\nloader, masker, cleaner, pipeline,\nsampling, split"]
+        labeling["absa.labeling\nLLM pre-labels, sheets, kappa,\nadjudication, reports"]
+        files[("Drive absa-data\nclean, sample, prelabels, labeling,\nfinal, splits, models")]
+        train["models.berturk (training, GPU)\nmodels.baseline_full (TF-IDF + LR)"]
+        evaluate["models.evaluate, models.compare_models\nshared evaluation on the frozen test set"]
     end
 
     user -->|"review text"| analyze
-    analyze -->|"predict(text)"| predict
+    analyze -->|"predict(text), is_truncated(text)"| predict
     predict -->|"7 aspects: label, confidence"| analyze
     analyze -->|"display names"| schema
+    predict --> prep
+    predict -->|"loaded once"| berturk
+    berturk -->|"load_model()"| weights
     predict -->|"aspect and label names"| schema
-    predict --> model
 
-    data -->|"reads and writes"| files
-    files -->|"labeled data"| baseline
-    baseline --> evaluate
-    baseline -->|"aspect names"| schema
+    data --> files
+    labeling --> files
+    files -->|"final_labels, split_v1"| train
+    train --> evaluate
+    train -->|"saved model"| files
+    files -->|"download models/berturk_v1"| weights
     evaluate -->|"aspect and label names"| schema
-    files -.->|"planned: training data"| model
-
-    classDef planned stroke-dasharray: 5 5,fill:#f3f3f3,color:#555
-    class model planned

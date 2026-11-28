@@ -2,19 +2,36 @@ sequenceDiagram
     actor U as User
     participant UI as Gradio UI (app.py, analyze)
     participant P as predict() (inference.py)
+    participant M as BERTurk model (models/berturk_v1)
+
+    Note over UI,M: Startup (NFR-2)
+    UI->>P: load()
+    alt Model folder exists
+        P->>M: load_model() once, on CPU
+        M-->>P: model and tokenizer kept in memory
+        P-->>UI: backend "berturk"
+    else Model folder missing
+        P-->>UI: raises ModelNotFoundError
+        UI-->>U: App stops with a message (folder path, ABSA_BACKEND=mock)
+    end
 
     U->>UI: Enter review, click Analiz et (or press Enter)
     UI->>P: predict(text or "")
 
     alt Valid text (happy path)
-        opt Planned (FR-7), not implemented yet: more than 128 tokens
-            P->>P: Truncate input to 128 tokens
-            Note over P,UI: How the UI learns about truncation is not defined in the contract yet
-        end
+        P->>P: Clean and mask personal data (as in training)
+        P->>M: Tokenize, truncate to 128 tokens, forward pass
+        M-->>P: 7 x 4 logits
+        P->>P: Softmax, most likely label and its probability per aspect
         P-->>UI: dict with all 7 aspects, each {label, confidence}
+        UI->>P: is_truncated(text)
+        P-->>UI: True if the review is longer than 128 tokens
         UI->>UI: Split mentioned aspects from yok aspects (FR-4)
         UI->>UI: Map keys to display names (ASPECT_DISPLAY, LABEL_DISPLAY)
-        UI-->>U: Result table (Özellik, Duygu, Güven) and yok accordion
+        UI-->>U: Result table (Özellik, Duygu, Güven), yok accordion
+        opt Review was truncated (FR-7)
+            UI-->>U: Note: only the first part of the review was analyzed
+        end
     else Empty or whitespace-only text (FR-6)
         P-->>UI: raises ValueError
         UI-->>U: Warning message, empty result table
